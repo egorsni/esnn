@@ -12,7 +12,7 @@ from math_support import compute_qr_factorization
 from nnet_v2 import Edge_Sheaf_NNet as Sheaf_NNet
 
 from sheaf_calculator import compute_neural_network_parameters
-from data_loader import read_data, read_data_dgl, perform_ttv_split
+from data_loader import read_data, perform_ttv_split
 
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import ndcg_score
@@ -31,20 +31,20 @@ def data_preprocessing(user_embed, item_embed, dimy):
     return xembed
 
 
-def learn_sheaf_parameters(xembed, ylabel, ylprob, eglist,
+def learn_sheaf_parameters(xembed, sembed, ylabel, ylprob, eglist,
                            idx_train, idx_ttest, idx_valid,
                            dimy=16, nbatch=128, nepoch=2048,
                            lr=1.0e-3, unique_name=''):
     print('learning_the_sheaf')
     nvert, dimx = xembed.shape
-    print("nvert, dimx", nvert, dimx)
+    _, dims = sembed.shape
     nlab = np.int64(np.max(ylabel) + 1)
-    nnet = Sheaf_NNet(nvert, dimx, dimy, nlab).float()#.double()
+    nnet = Sheaf_NNet(nvert, dimx, dims, nlab).double()
 
    
 
     ltrain, lttest, lvalid, accs_train, accs_ttest, accs_valid = compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
-                                                                                                   xembed, ylabel, ylprob, eglist,
+                                                                                                   xembed, sembed, ylabel, ylprob, eglist,
                                                                                                    idx_train, idx_ttest, idx_valid)
 
 
@@ -259,26 +259,21 @@ def data_postprocessing(dime, dimy, conv_depth):
 
 def main():
     print('inside the main function')
-    embedding_dimension = 128
+    embedding_dimension = 8
     sheaf_edge_space_dimension = 16
-    # dataset_name = 'CiteSeer'
+    dataset_name = 'CiteSeer'
     # dataset_name = 'PubMed'
-    dataset_name = 'Cora'
+    # dataset_name = 'Cora'
     # dataset_name = 'DBLP'
-    # dataset_name = 'Squirrel'
     unique_name_base = '_embed_dime_' + str(embedding_dimension) + '_dimy_' + str(sheaf_edge_space_dimension)
     first_time_flag = True
 
     nreal = 5 # хотя бы 5 минимум 3
-    for ireal in range(0,10):
+    for ireal in range(30,40):
         unique_name = '_' + dataset_name + '_realization_' + str(ireal) + unique_name_base
         if first_time_flag:
-            if dataset_name in ["CiteSeer", 'PubMed', 'Cora', 'DBLP']:
-                xembed, eglist, ylabel, ylprob, xsvd = read_data(embedding_dimension=embedding_dimension,
+            xembed, eglist, ylabel, ylprob, xsvd = read_data(embedding_dimension=embedding_dimension,
                                                              dataset_name=dataset_name, eps=1.0e-6)
-            else:
-                xembed, eglist, ylabel, ylprob, xsvd = read_data_dgl(embedding_dimension=embedding_dimension,
-                                             dataset_name=dataset_name, eps=1.0e-6)
             ### you have to modify read_data method
             print('ylabel.shape = ' + str(ylabel.shape))
             nsample = xembed.shape[0]
@@ -299,13 +294,13 @@ def main():
             # idx_valid = np.load('./data/idx_valid' + unique_name + '.npy')
 
         print('xembed.shape = ' + str(xembed.shape))
+        print('xsvd.shape = ' + str(xsvd.shape))
         print(unique_name)
-        print(xembed.shape, xsvd.shape)
-        learn_sheaf_parameters(xsvd, ylabel, ylprob, eglist,
+        learn_sheaf_parameters(xembed, xsvd, ylabel, ylprob, eglist,
                                idx_train, idx_ttest, idx_valid,
                                dimy=sheaf_edge_space_dimension,
-                               nbatch=128, nepoch=(3000),
-                               lr=2.0e-4, unique_name=unique_name)
+                               nbatch=128, nepoch=(5000),
+                               lr=1.0e-4, unique_name=unique_name)
     return 0
 
 main()

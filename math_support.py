@@ -64,63 +64,34 @@ def compute_qr_factorization(smat, iidx, jidx, nvec, dimy, niter, eps=1.0e-6):
 
 
 def convert_edge_index_to_list(edge_index):
-    sorted_indices = np.argsort(edge_index[0])
-    sorted_edge_index = edge_index[:, sorted_indices]
-    
-    num_nodes = int(edge_index.max()) + 1
-    edge_list = [[] for _ in range(num_nodes)]
-    
-    nedge = sorted_edge_index.shape[1]
-    current_src = -1
-    
+    nedge = edge_index.shape[1]
+    idx_vert = 0
+    vert_list = []
+    edge_list = []
     for idx_edge in range(nedge):
-        src = sorted_edge_index[0, idx_edge]
-        dst = sorted_edge_index[1, idx_edge]
-        
-        if src != current_src:
-            current_src = src
-        
-        edge_list[src].append(dst)
-    
+        if idx_vert != edge_index[0, idx_edge]:
+            edge_list.append(vert_list)
+            vert_list = []
+            idx_vert += 1
+        if idx_vert == edge_index[0, idx_edge]:
+            vert_list.append(edge_index[1, idx_edge])
+    edge_list.append(vert_list)
     return edge_list
 
 
 
-# def graph_random_walk(edge_list, nsample):
-#     random_walk_data = np.zeros((nsample))
-#     nvert = len(edge_list)
-#     idx_vert = np.random.randint(0, high=nvert)
-
-#     while len(edge_list[idx_vert]) == 0:
-#         idx_vert = np.random.randint(0, high=nvert)
-    
-#     for idx in range(nsample):
-#         random_walk_data[idx] = idx_vert
-#         vert_list = edge_list[idx_vert]
-#         idx_vert = vert_list[np.random.randint(0, high=len(vert_list))]
-#     return random_walk_data
-
 def graph_random_walk(edge_list, nsample):
     random_walk_data = np.zeros((nsample))
     nvert = len(edge_list)
-    
-    non_empty_vertices = [i for i in range(nvert) if len(edge_list[i]) > 0]
-    
-    if len(non_empty_vertices) == 0:
-        random_walk_data = np.random.randint(0, nvert, size=nsample)
-        return random_walk_data
-    
-    idx_vert = non_empty_vertices[np.random.randint(0, len(non_empty_vertices))]
+    idx_vert = np.random.randint(0, high=nvert)
+
+    while len(edge_list[idx_vert]) == 0:
+        idx_vert = np.random.randint(0, high=nvert)
     
     for idx in range(nsample):
         random_walk_data[idx] = idx_vert
         vert_list = edge_list[idx_vert]
-        
-        if len(vert_list) == 0:
-            idx_vert = non_empty_vertices[np.random.randint(0, len(non_empty_vertices))]
-        else:
-            idx_vert = vert_list[np.random.randint(0, len(vert_list))]
-    
+        idx_vert = vert_list[np.random.randint(0, high=len(vert_list))]
     return random_walk_data
 
 

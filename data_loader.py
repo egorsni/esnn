@@ -100,46 +100,7 @@ def read_data(embedding_dimension=1, dataset_name='', eps=1.0e-6):
     return (xembed, eglist, ylabel, ylprob, xsvd)
 
 
-import numpy as np
-from sklearn.decomposition import PCA
-import torch
 
-def read_data_dgl(embedding_dimension=1, dataset_name='Squirrel', eps=1.0e-6):
-    # Load SquirrelDataset from DGL
-    if dataset_name == "Squirrel":
-        from dgl.data import SquirrelDataset
-        dataset = SquirrelDataset()
-    else:
-        raise Exception('wrong dataset name')
-    
-    # Get the first graph
-    graph = dataset[0]
-    
-    # Extract features and labels
-    xembed = graph.ndata['feat'].cpu().detach().numpy()
-    ylabel = graph.ndata['label'].cpu().detach().numpy().astype(np.int64)
-    
-    # Extract edge indices from DGL graph
-    src, dst = graph.edges()
-    eindex = np.stack([src.cpu().numpy(), dst.cpu().numpy()], axis=0).astype(np.int64)
-    
-    # Apply PCA if needed (currently commented out like in original)
-    pca = PCA(n_components=embedding_dimension)
-    # xembed = pca.fit_transform(xembed)
-    
-    # Convert edges to list format (assuming this function remains the same)
-    eglist = convert_edge_index_to_list(eindex)
-    
-    # Compute user-item matrix (assuming these functions remain the same)
-    smat, uidx, iidx = compute_user_item_matrix(np.transpose(eindex))
-    
-    # Currently using xembed as xsvd (like in original)
-    xsvd = xembed.copy()
-    
-    # Convert labels to probability (assuming this function remains the same)
-    ylprob = convert_label_to_lprob(ylabel, eps=eps)
-    
-    return (xembed, eglist, ylabel, ylprob, xsvd)
 
 
 

@@ -10,9 +10,7 @@ from math_support import convert_sequence_to_graph
 from math_support import compute_index_subsample
 
 from sklearn.metrics import accuracy_score
-
 from tqdm import tqdm
-# from optimized_infer import infer_labels_optimized as infer_labels
 
 
 
@@ -56,21 +54,21 @@ def compute_loss_weights_simple(loss_orth, loss_cons, loss_smap, loss_lbpr,
     return (w_orth, w_cons, w_smap, w_lbpr)
 
 
-def infer_labels(nnet, nbatch, xembed, eglist):
+def infer_labels(nnet, nbatch, xembed, sembed, eglist):
     nvert = len(eglist)
     yinfer = np.zeros((nvert))
     for idx in tqdm(list(range(nvert)), desc='infer_labels'):
         random_walk_data = graph_random_walk_fixed_start(eglist, nbatch, idx)
         wgraph_numpy, idx_node = convert_sequence_to_graph(random_walk_data)
-        wgraph = torch.from_numpy(wgraph_numpy).float()#.double()
+        wgraph = torch.from_numpy(wgraph_numpy).double()
         idx_target = np.where(idx_node == idx)[0][0]
-        yinfer[idx] = nnet.label_inference(xembed[idx_node[:], :], wgraph, idx_target)
+        yinfer[idx] = nnet.label_inference(xembed[idx_node[:], :], sembed[idx_node[:], :], wgraph, idx_target)
     return yinfer
 
 
 
 def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
-                                      xembed_numpy, ylabel_numpy, ylprob_numpy, eglist,
+                                      xembed_numpy, sembed_numpy, ylabel_numpy, ylprob_numpy, eglist,
                                       idx_train, idx_ttest, idx_valid,
                                       loss_threshold=1.0e-2, kappa=1.0e1, eps=1.0e-6):
     print('compute_neural_network_parameters')
@@ -83,17 +81,19 @@ def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
     kapp_orth, kapp_cons, kapp_smap, kapp_lbpr = init_loss_target(loss_threshold)
 
 
-    xembed = torch.from_numpy(xembed_numpy).float()#.double()
-    ylprob = torch.from_numpy(ylprob_numpy).float()#.double()
+    xembed = torch.from_numpy(xembed_numpy).double()
+    sembed = torch.from_numpy(sembed_numpy).double()
+    ylprob = torch.from_numpy(ylprob_numpy).double()
     ylabel = ylabel_numpy.copy()
 
 
     for kepoch in range(nepoch):
         random_walk_data = graph_random_walk(eglist, nbatch)
         wgraph_numpy, idx_node = convert_sequence_to_graph(random_walk_data)
-        wgraph = torch.from_numpy(wgraph_numpy).float()#.double()
+        wgraph = torch.from_numpy(wgraph_numpy).double()
         idx_subsample_valid = compute_index_subsample(idx_node, idx_valid)
         loss_orth, loss_cons, loss_smap, loss_lbpr, loss_accs = nnet(Variable(xembed[idx_node[:], :]),
+                                                                     Variable(sembed[idx_node[:], :]),
                                                                               ylabel[idx_node[:]],
                                                                               ylprob[idx_node[:]],
                                                                               wgraph, idx_subsample_valid)
@@ -127,6 +127,7 @@ def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
 
         idx_subsample_ttest = compute_index_subsample(idx_node, idx_ttest)
         loss_orth, loss_cons, loss_smap, loss_lbpr, loss_accs = nnet(Variable(xembed[idx_node[:], :]),
+                                                                     Variable(sembed[idx_node[:], :]),
                                                                               ylabel[idx_node[:]],
                                                                               ylprob[idx_node[:]],
                                                                               wgraph, idx_subsample_ttest)
@@ -162,6 +163,7 @@ def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
         optimizer.zero_grad()
         idx_subsample_train = compute_index_subsample(idx_node, idx_train)
         loss_orth, loss_cons, loss_smap, loss_lbpr, loss_accs = nnet(Variable(xembed[idx_node[:], :]),
+                                                                     Variable(sembed[idx_node[:], :]),
                                                                               ylabel[idx_node[:]],
                                                                               ylprob[idx_node[:]],
                                                                               wgraph, idx_subsample_train)
@@ -199,9 +201,10 @@ def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
 
 
     wgraph_numpy, idx_node = convert_sequence_to_graph(random_walk_data)
-    wgraph = torch.from_numpy(wgraph_numpy).float()#.double()
+    wgraph = torch.from_numpy(wgraph_numpy).double()
     idx_subsample_valid = compute_index_subsample(idx_node, idx_valid)
     loss_orth, loss_cons, loss_smap, loss_lbpr, loss_accs = nnet(Variable(xembed[idx_node[:], :]),
+                                                                 Variable(sembed[idx_node[:], :]),
                                                                           ylabel[idx_node[:]],
                                                                           ylprob[idx_node[:]],
                                                                           wgraph, idx_subsample_valid)
@@ -222,6 +225,7 @@ def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
 
     idx_subsample_ttest = compute_index_subsample(idx_node, idx_ttest)
     loss_orth, loss_cons, loss_smap, loss_lbpr, loss_accs = nnet(Variable(xembed[idx_node[:], :]),
+                                                                 Variable(sembed[idx_node[:], :]),
                                                                           ylabel[idx_node[:]],
                                                                           ylprob[idx_node[:]],
                                                                           wgraph, idx_subsample_ttest)
@@ -241,6 +245,7 @@ def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
 
     idx_subsample_train = compute_index_subsample(idx_node, idx_train)
     loss_orth, loss_cons, loss_smap, loss_lbpr, loss_accs = nnet(Variable(xembed[idx_node[:], :]),
+                                                                 Variable(sembed[idx_node[:], :]),
                                                                           ylabel[idx_node[:]],
                                                                           ylprob[idx_node[:]],
                                                                           wgraph, idx_subsample_train)
@@ -258,7 +263,7 @@ def compute_neural_network_parameters(nnet, nepoch, nbatch, lr,
     loss_data_train[kepoch, 4] = loss.item()
     loss_data_train[kepoch, 5] = loss_accs
 
-    ynumer = infer_labels(nnet, nbatch, xembed, eglist)
+    ynumer = infer_labels(nnet, nbatch // 2, xembed, sembed, eglist)
     accs_train = accuracy_score(ylabel[idx_train[:]], ynumer[idx_train[:]])
     accs_ttest = accuracy_score(ylabel[idx_ttest[:]], ynumer[idx_ttest[:]])
     accs_valid = accuracy_score(ylabel[idx_valid[:]], ynumer[idx_valid[:]])
