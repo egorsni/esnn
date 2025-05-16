@@ -1,0 +1,7 @@
+data/*
+classificator_features/*
+data_torch_geometric/*
+nnet_folder/*
+.ipynb_checkpoints
+*__pycache_*
+.vscode
